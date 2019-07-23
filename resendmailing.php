@@ -161,3 +161,21 @@ function resendmailing_civicrm_navigationMenu(&$menu) {
   ));
   _resendmailing_civix_navigationMenu($menu);
 } // */
+
+/**
+ * Implements hook_civicrm_searchTasks.
+ *
+ * https://docs.civicrm.org/dev/en/latest/hooks/hook_civicrm_searchTasks/
+ */
+function resendmailing_civicrm_searchTasks($objectType, &$tasks) {
+
+  if ($objectType == 'contact') {
+    if (user_access('access CiviMail') && user_access('create mailings')) {
+      $tasks[] = [
+        'title'  => 'Email - schedule/send previous CiviMail mailing',
+        'class'  => 'CRM_Resendmailing_Form_Task_SelectMailing'
+        // 'result' => TRUE, unsure what this does.
+      ];
+    }
+  }
+}
