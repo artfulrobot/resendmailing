@@ -170,9 +170,9 @@ function resendmailing_civicrm_navigationMenu(&$menu) {
 function resendmailing_civicrm_searchTasks($objectType, &$tasks) {
 
   if ($objectType == 'contact') {
-    if (user_access('access CiviMail') && user_access('create mailings')) {
+    if (CRM_Core_Permission::check(['access CiviMail'])) {
       $tasks[] = [
-        'title'  => 'Email - schedule/send previous CiviMail mailing',
+        'title'  => 'Email - resend a CiviMail mailing',
         'class'  => 'CRM_Resendmailing_Form_Task_SelectMailing'
         // 'result' => TRUE, unsure what this does.
       ];

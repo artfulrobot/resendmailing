@@ -5,8 +5,8 @@ your search results.
 
 1. Do a search
 
-2. Select all or some of the contacts and choose "Email - Resend a previous
-   mailing to these contacts"
+2. Select all or some of the contacts and choose "Email - resend a CiviMail
+   mailing"
 
 3. Edit and then send/schedule the mailing as you wish. You'll need to choose an
    Unsubscribe group - this is the group people will be unsubscribed from if
