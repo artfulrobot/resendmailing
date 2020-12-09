@@ -1,5 +1,6 @@
 <?php
 
+error_log(__FILE__);
 require_once 'resendmailing.civix.php';
 use CRM_Resendmailing_ExtensionUtil as E;
 
@@ -111,6 +112,7 @@ function resendmailing_civicrm_caseTypes(&$caseTypes) {
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_angularModules
  */
 function resendmailing_civicrm_angularModules(&$angularModules) {
+  Civi::log()->info(__FUNCTION__);
   _resendmailing_civix_civicrm_angularModules($angularModules);
 }
 
