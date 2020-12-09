@@ -1,4 +1,3 @@
-console.log("loaded 16");
 (function(angular, $, _) {
 
   const sharedRoute = {
@@ -24,17 +23,12 @@ console.log("loaded 16");
       },
       loggedIn: function(crmApi) {
         return crmApi('Email', 'get', {
-          'return'    : 'contact_id,email',
+          'return'    : 'contact_id,id',
           'contact_id': "user_contact_id",
           'is_primary': 1,
           'sequential': 1,
-          'api.Contact.get' : {'return' : "display_name", sequential: 1},
         })
-        .then(r => {
-          var vals = r.values[0];
-          vals.display_name = (vals['api.Contact.get'].values || [{display_name: null}])[0].display_name;
-          return vals;
-        });
+        .then(r => r.values[0]);
       }
     }
   };
@@ -58,35 +52,28 @@ console.log("loaded 16");
     // We have myContact available in JS. We also want to reference it in HTML.
     this.mailings = mailings;
 
+    if ($route.current.params.mlid) {
+      this.mailingID = $route.current.params.mlid;
+    }
     this.contactID = loggedIn.contact_id;
-    this.toEmail = loggedIn.email;
+    this.emailID = loggedIn.id;
     this.contactName = loggedIn['api.Contact.get']
 
     this.updateEmail = () => {
-      var oldToEmail = this.toEmail;
+      this.emails = [];
+
       if (this.contactID) {
 
         crmApi('Email', 'get', {
           contact_id: this.contactID,
           sequential: 1,
-          options: {sort: ['is_primary DESC', 'is_bulkmail DESC']}
+          options: {sort: ['is_bulkmail DESC', 'is_primary DESC']}
         })
         .then(r => {
-          r = r.values;
           // If original email is in this list, use that.
-          var found = false;
-          r.forEach(e => {
-            if (e.email === oldToEmail) {
-              this.toEmail = oldToEmail;
-              found = true;
-            }
-          });
-          if (found) {
-            return;
-          }
-
-          if (r[0] && r[0].email) {
-            this.toEmail = r[0].email;
+          this.emails = r.values;
+          if (this.emails[0]) {
+            this.emailID = this.emails[0].id;
           }
         })
         .catch(e => {
@@ -94,7 +81,7 @@ console.log("loaded 16");
         });
       }
     };
-    //$scope.$watch('$scope.contactID', this.updateEmail);
+    this.updateEmail();
 
     this.send = function() {
       return crmStatus(
@@ -102,9 +89,9 @@ console.log("loaded 16");
         {start: ts('Sending...'), success: ts('Sent')},
         // The save action. Note that crmApi() returns a promise.
         crmApi('Mailing', 'resend', {
-          id: ctrl.mailingID,
-          toEmail: ctrl.toEmail,
-          contactID: ctrl.contactID
+          mailing_id: ctrl.mailingID,
+          email_id: ctrl.emaiID,
+          contact_id: ctrl.contactID
         })
       );
     };

@@ -6,16 +6,20 @@
   <form name="myForm" crm-ui-id-scope>
 
     <div class="help">
-      <p>{{ts('This is an auto-generated skeletal page.')}}</p>
+      <p>{{ts('This will send a copy of an already-sent mailing to the contact you choose.')}}</p>
     </div>
 
-    <div crm-ui-field="{name: 'myForm.mailingID', title: ts('Mailing (last three months shown)')}">
+    <div class="crm-message messages warning crm-warn crm-warning crm-why-can-i-never-remember-the-right-classes">
+      <p>{{ts('This is beta. It might do terrible things. It has not been fully tested. Use at your own risk.')}}</p>
+    </div>
+
+    <div crm-ui-field="{name: 'myForm.mailingID', title: ts('Mailing (last three months’ mailings shown)')}">
       <select
         crm-ui-select="{allowClear:false, dropdownAutoWidth: true, width: '100%'}"
         ng-model="$ctrl.mailingID"
         name="mailingID"
+        ng-options="(t.name + ' | ' + t.subject) for t in $ctrl.mailings track by t.id"
         >
-        <option ng-repeat="t in $ctrl.mailings" value="{{t.id}}" >{{t.name}} | {{t.subject}}</option>
       </select>
     </div>
 
@@ -34,15 +38,14 @@
       </div>
     </div>
 
-    <div
-      crm-ui-field="{name: 'myForm.toAddr', title: ts('To email address')}">
-      <input
-        crm-ui-id="myForm.toEmail"
-        name="toAddr"
-        ng-model="$ctrl.toEmail"
-        class="crm-form-text"
-        style="width: 100%; box-sizing: border-box"
-        />
+    <div crm-ui-field="{name: 'myForm.emailID', title: ts('Email')}">
+      <select
+        crm-ui-select="{allowClear:false, dropdownAutoWidth: true, width: '100%'}"
+        ng-model="$ctrl.emailID"
+        name="emailID"
+        ng-options="e.email for e in $ctrl.emails track by e.id"
+        >
+      </select>
     </div>
 
     <div>

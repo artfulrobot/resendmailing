@@ -10,11 +10,8 @@ use CRM_Resendmailing_ExtensionUtil as E;
  * @see https://docs.civicrm.org/dev/en/latest/framework/api-architecture/
  */
 function _civicrm_api3_mailing_Resend_spec(&$spec) {
-  $spec['magicword']['api.required'] = 1;
-
-  $spec['id'] = [
+  $spec['mailing_id'] = [
     'api.required' => 1,
-    'api.aliases' => ['id', 'mailing_id'],
     'description' => 'Mailing ID (of completed mailing)',
   ];
 
@@ -23,8 +20,8 @@ function _civicrm_api3_mailing_Resend_spec(&$spec) {
     'description' => 'Contact ID',
   ];
 
-  $spec['email'] = [
-    'description' => 'Email address to send to. If ommitted the primary email of the contact will be used. The email must not be on hold.',
+  $spec['email_id'] = [
+    'description' => 'Email ID for email address to send to. If ommitted the bulk (or primary) email of the contact will be used. The email must not be on hold.',
   ];
 }
 
@@ -42,66 +39,86 @@ function _civicrm_api3_mailing_Resend_spec(&$spec) {
  */
 function civicrm_api3_mailing_Resend($params) {
 
-
   // Look up the contact, make sure they exist.
   civicrm_api3('Contact', 'getsingle', [
     'contact_id' => $params['contact_id'],
     'is_deleted' => 0,
     'is_deceased' => 0,
+    'do_not_email' => 0,
+    'is_opt_out' => 0,
   ]);
+      //->where('e.on_hold = 0')
 
   // Look up the mailing, make sure it exists.
-  $mailing = civicrm_api3('Mailing', 'getsingle', [
-    'id' => $params['id'],
-  ])['values'];
+  civicrm_api3_verify_mandatory($params,
+    'CRM_Mailing_DAO_MailingJob',
+    ['mailing_id'],
+    FALSE
+  );
 
-  if (empty($params['email'])) {
-    $email = Civi\Api4\Email::get(FALSE)
-      ->setCheckPermissions(FALSE)
-      ->addWhere('contact_id', '=', $params['contact_id'])
-      ->addWhere('on_hold', '=', 0)
-      ->addOrderBy('is_primary', 'DESC')
-      ->addOrderBy('is_bulkmail', 'DESC')
-      ->execute()->first();
-    if (!($email['email'] ?? NULL)) {
-      throw new API_Exception("Failed to find a suitable email for Contact $params[contact_id]");
-    }
+  // Get the email_id, make sure it's not on hold.
+  $emailApi = Civi\Api4\Email::get(FALSE)
+    ->setCheckPermissions(FALSE)
+    ->addWhere('contact_id', '=', $params['contact_id'])
+    ->addWhere('on_hold', '=', 0)
+    ->addOrderBy('is_bulkmail', 'DESC')
+    ->addOrderBy('is_primary', 'DESC');
+  if (!empty($params['email_id'])) {
+    $emailApi->addWhere('id', '=', $params['email_id']);
+  }
+  $email = $emailApi->execute()->first();
+  if (!($email['id'] ?? NULL)) {
+    throw new API_Exception("Failed to find a suitable email for Contact $params[contact_id]");
+  }
+
+  // Create a job.
+  $jobParams = [
+    'status' => 'Scheduled',
+    'is_test' => 0,
+    'mailing_id' => $params['mailing_id'],
+    // This prevents calling CRM_Mailing_BAO_Mailing::getRecipients()
+    'is_calling_function_updated_to_reflect_deprecation' => TRUE,
+  ];
+  $resendJob = civicrm_api3('MailingJob', 'create', $jobParams);
+
+  // Create a single queue item for the job to resend to our email.
+  civicrm_api3('MailingEventQueue', 'create', [
+      'job_id'     => $resendJob['id'],
+      'email_id'   => $email['id'],
+      'contact_id' => $params['contact_id'],
+    ]);
+
+  // ---- begin hacked copy of CRM_Mailing_BAO_MailingJob::runJobs();
+  $job = new CRM_Mailing_BAO_MailingJob();
+  $job->id = $resendJob['id'];
+  $job->find(TRUE);
+
+  // still use job level lock for each child job
+  $lock = Civi::lockManager()->acquire("data.mailing.job.{$job->id}");
+  if (!$lock->isAcquired()) {
+    throw new API_Exception("Failed to acquire lock.");
+  }
+
+  // Get the mailer
+  $mailer = \Civi::service('pear_mail');
+
+  // Compose and deliver each child job
+  if (\CRM_Utils_Constant::value('CIVICRM_FLEXMAILER_HACK_DELIVER')) {
+    $isComplete = Civi\Core\Resolver::singleton()->call(CIVICRM_FLEXMAILER_HACK_DELIVER, [$job, $mailer, NULL]);
   }
   else {
-    if (!filter_var($params['email'], FILTER_VALIDATE_EMAIL)) {
-      throw new API_Exception("Given email is invalid.");
-    }
+    $isComplete = $job->deliver($mailer, NULL);
   }
 
-  // This logic is a copy of civicrm/ang/crmMailing/services.js which has a sendTest method.
+  CRM_Utils_Hook::post('create', 'CRM_Mailing_DAO_Spool', $job->id, $isComplete);
+  // Update job to completed.
+  CRM_Mailing_BAO_MailingJob::create(['id' => $job->id, 'end_date' => date('YmdHis'), 'status' => 'Complete']);
 
+  // Release the child job lock
+  $lock->release();
 
-  // Begin with a copy of the api3 values.
-  $mailingParams = $mailing;
+  // Return delivered mail info
+  // $mailDelivered = CRM_Mailing_Event_BAO_Delivered::getRows($params['mailing_id'], $resendJob['id'], TRUE, NULL, NULL, NULL, 0);
 
-  // Add in our email.
-  $mailingParams['email'] = $params['email'];
-  // Add a chain call.
-  $mailingParams['api.Mailing.send_test'] = [
-    'mailing_id' => '$value.id',
-    'test_email' => $params['email'],
-    'test_group' => NULL,
-  ];
-  // options:  {force_rollback: 1}, // Test mailings include tracking features, so the mailing must be persistent
-
-  // WORKAROUND: Mailing.create (aka CRM_Mailing_BAO_Mailing::create()) interprets scheduled_date
-  // as an *intent* to schedule and creates tertiary records. Saving a draft with a scheduled_date
-  // is therefore not allowed. Remove this after fixing Mailing.create's contract.
-  unset($mailingParams['scheduled_date']);
-
-  unset($mailingParams['jobs']);
-  unset($mailingParams['recipients']);
-  // skip recipient rebuild while sending test mail
-  $mailingParams['_skip_evil_bao_auto_recipients_'] = 1;
-
-  $result = civicrm_api3('Mailing', 'create', $params);
-
-  $returnValues = $result['values'][$result['id']]['api.Mailing.send_test']['values'] ?? NULL;
-
-  return civicrm_api3_create_success($returnValues, $params, 'Mailing', 'Resend');
+  return civicrm_api3_create_success(1);
 }

@@ -151,12 +151,12 @@ function resendmailing_civicrm_preProcess($formName, &$form) {
  * Implements hook_civicrm_navigationMenu().
  *
  * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_navigationMenu
- *
+ */
 function resendmailing_civicrm_navigationMenu(&$menu) {
   _resendmailing_civix_insert_navigation_menu($menu, 'Mailings', array(
-    'label' => E::ts('New subliminal message'),
-    'name' => 'mailing_subliminal_message',
-    'url' => 'civicrm/mailing/subliminal',
+    'label' => E::ts('Resend a sent mailing'),
+    'name' => 'resendmailing_single',
+    'url' => 'civicrm/a#/resendmailing',
     'permission' => 'access CiviMail',
     'operator' => 'OR',
     'separator' => 0,

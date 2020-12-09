@@ -33,3 +33,21 @@ from less committed to SENDING RANTY EMAILS IN ALL CAPS.
 
 2. Create a copy of the mailing (ideally reusing the "re-use" code) but then remove the groups and put the new hidden group in its place.
 
+## New (untested): Immediately resend a mailing to a single contact.
+
+There’s a new and rather untested feature you'll find under **Mailings
+» Resend Sent Mailing** which lets you resend a mailing to any single
+contact. This may have various uses, from convenience to testing.
+
+Known quirk: this essentially adds a new job to an existing mailing, and
+is designed NOT to change the recipients table. This means you get reports
+like "Intended Recipients: *N*, Successful Deliveries: *N + 1*".
+
+(Nb. it would be nice to work a link to this into the Sent Mailings table,
+under the 'more' menu, but I couldn't figure that out due to my QuickForm
+alergies. I have designed the angular path so it can take a mailing ID
+like `#/resendmailing/<mailingID>`, so if you can do that, please do
+a PR.)
+
+!!!warning
+   I don't know that this is safe to use yet. Testers welcome!
