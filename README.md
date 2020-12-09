@@ -36,7 +36,7 @@ from less committed to SENDING RANTY EMAILS IN ALL CAPS.
 ## New (untested): Immediately resend a mailing to a single contact.
 
 There’s a new and rather untested feature you'll find under **Mailings
-» Resend Sent Mailing** which lets you resend a mailing to any single
+» Resend a sent Mailing** which lets you resend a mailing to any single
 contact. This may have various uses, from convenience to testing.
 
 Known quirk: this essentially adds a new job to an existing mailing, and
