@@ -1,6 +1,5 @@
 <?php
 
-error_log(__FILE__);
 require_once 'resendmailing.civix.php';
 use CRM_Resendmailing_ExtensionUtil as E;
 
