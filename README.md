@@ -33,7 +33,7 @@ from less committed to SENDING RANTY EMAILS IN ALL CAPS.
 
 2. Create a copy of the mailing (ideally reusing the "re-use" code) but then remove the groups and put the new hidden group in its place.
 
-## New (untested): Immediately resend a mailing to a single contact.
+## New, beta: Immediately resend a mailing to a single contact.
 
 There’s a new and rather untested feature you'll find under **Mailings
 » Resend a sent Mailing** which lets you resend a mailing to any single
@@ -49,5 +49,4 @@ alergies. I have designed the angular path so it can take a mailing ID
 like `#/resendmailing/<mailingID>`, so if you can do that, please do
 a PR.)
 
-!!!warning
-   I don't know that this is safe to use yet. Testers welcome!
+**BETA** I've not used this much, though it seems to work just fine.
