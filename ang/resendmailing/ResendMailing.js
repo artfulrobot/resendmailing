@@ -57,7 +57,7 @@
     }
     this.contactID = loggedIn.contact_id;
     this.emailID = loggedIn.id;
-    this.contactName = loggedIn['api.Contact.get']
+    this.contactName = loggedIn['api.Contact.get'];
 
     this.updateEmail = () => {
       this.emails = [];
@@ -90,7 +90,7 @@
         // The save action. Note that crmApi() returns a promise.
         crmApi('Mailing', 'resend', {
           mailing_id: ctrl.mailingID,
-          email_id: ctrl.emaiID,
+          email_id: ctrl.emailID,
           contact_id: ctrl.contactID
         })
       );
