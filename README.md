@@ -33,11 +33,17 @@ from less committed to SENDING RANTY EMAILS IN ALL CAPS.
 
 2. Create a copy of the mailing (ideally reusing the "re-use" code) but then remove the groups and put the new hidden group in its place.
 
-## New, beta: Immediately resend a mailing to a single contact.
+## New, beta: Immediately resend a mailing to a single contact EXPERIMENTAL!!
 
-There’s a new and rather untested feature you'll find under **Mailings
+DANGER!
+
+There’s a new feature you'll find under **Mailings
 » Resend a sent Mailing** which lets you resend a mailing to any single
 contact. This may have various uses, from convenience to testing.
+
+**In some situations it has resent an entire mailing** Please see
+https://github.com/artfulrobot/resendmailing/issues/3 I have a hack in place to
+avoid this now, but I cannot reproduce it with a test, so I'm not super confident. Help wanted to track this down.
 
 Known quirk: this essentially adds a new job to an existing mailing, and
 is designed NOT to change the recipients table. This means you get reports
