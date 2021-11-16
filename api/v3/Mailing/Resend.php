@@ -47,7 +47,7 @@ function civicrm_api3_mailing_Resend($params) {
     'do_not_email' => 0,
     'is_opt_out' => 0,
   ]);
-      //->where('e.on_hold = 0')
+  //->where('e.on_hold = 0')
 
   // Look up the mailing, make sure it exists.
   civicrm_api3_verify_mandatory($params,
@@ -71,43 +71,61 @@ function civicrm_api3_mailing_Resend($params) {
     throw new API_Exception("Failed to find a suitable email for Contact $params[contact_id]");
   }
 
-  // Create a job.
-  $jobParams = [
-    'status' => 'Scheduled',
-    'is_test' => 0,
-    'mailing_id' => $params['mailing_id'],
-    // This prevents calling CRM_Mailing_BAO_Mailing::getRecipients()
-    'is_calling_function_updated_to_reflect_deprecation' => TRUE,
-  ];
-  $resendJob = civicrm_api3('MailingJob', 'create', $jobParams);
+  // OK, we're going for it.
+  try {
 
-  // Create a single queue item for the job to resend to our email.
-  civicrm_api3('MailingEventQueue', 'create', [
+    // Create a job.
+    $jobParams = [
+      'status' => 'Scheduled',
+      'is_test' => 0,
+      'mailing_id' => $params['mailing_id'],
+      // This prevents calling CRM_Mailing_BAO_Mailing::getRecipients()
+      'is_calling_function_updated_to_reflect_deprecation' => TRUE,
+    ];
+    $resendJob = civicrm_api3('MailingJob', 'create', $jobParams);
+
+    // Create a single queue item for the job to resend to our email.
+    civicrm_api3('MailingEventQueue', 'create', [
       'job_id'     => $resendJob['id'],
       'email_id'   => $email['id'],
       'contact_id' => $params['contact_id'],
     ]);
 
-  // ---- begin hacked copy of CRM_Mailing_BAO_MailingJob::runJobs();
-  $job = new CRM_Mailing_BAO_MailingJob();
-  $job->id = $resendJob['id'];
-  $job->find(TRUE);
+    // ---- begin hacked copy of CRM_Mailing_BAO_MailingJob::runJobs();
+    $job = new CRM_Mailing_BAO_MailingJob();
+    $job->id = $resendJob['id'];
+    $job->find(TRUE);
 
-  // still use job level lock for each child job
-  $lock = Civi::lockManager()->acquire("data.mailing.job.{$job->id}");
-  if (!$lock->isAcquired()) {
-    throw new API_Exception("Failed to acquire lock.");
+    // still use job level lock for each child job
+    $lock = Civi::lockManager()->acquire("data.mailing.job.{$job->id}");
+    if (!$lock->isAcquired()) {
+      throw new API_Exception("Failed to acquire lock.");
+    }
+
+    // Get the mailer
+    $mailer = \Civi::service('pear_mail');
+
+    // Compose and deliver each child job
+    if (\CRM_Utils_Constant::value('CIVICRM_FLEXMAILER_HACK_DELIVER')) {
+      $isComplete = Civi\Core\Resolver::singleton()->call(CIVICRM_FLEXMAILER_HACK_DELIVER, [$job, $mailer, NULL]);
+    }
+    else {
+      $isComplete = $job->deliver($mailer, NULL);
+    }
+
+    if (!empty($GLOBALS['MailingResendTestShouldDie'])) {
+      throw new Exception("Deliberate exception for testing.");
+    }
   }
-
-  // Get the mailer
-  $mailer = \Civi::service('pear_mail');
-
-  // Compose and deliver each child job
-  if (\CRM_Utils_Constant::value('CIVICRM_FLEXMAILER_HACK_DELIVER')) {
-    $isComplete = Civi\Core\Resolver::singleton()->call(CIVICRM_FLEXMAILER_HACK_DELIVER, [$job, $mailer, NULL]);
-  }
-  else {
-    $isComplete = $job->deliver($mailer, NULL);
+  catch (\Exception $e) {
+    // If an error occurred and we ended up leaving a job Scheduled, it will trigger a whole resend.
+    // We don't want that, so we cancel the job.
+    if (!empty($resendJob['id'])) {
+      // Note deliberate mis-spelling of Cancelled
+      civicrm_api3('MailingJob', 'update', ['id' => $resendJob['id'], 'status' => 'Canceled']);
+    }
+    // re-throw
+    throw $e;
   }
 
   CRM_Utils_Hook::post('create', 'CRM_Mailing_DAO_Spool', $job->id, $isComplete);
