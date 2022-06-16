@@ -71,6 +71,12 @@ function civicrm_api3_mailing_Resend($params) {
     throw new API_Exception("Failed to find a suitable email for Contact $params[contact_id]");
   }
 
+  // Check whether the contact already has an activity
+  // and delete it, to avoid a "DB error: already exists" fatal
+  if (Civi::settings()->get('write_activity_record')) {
+    CRM_Resendmailing_BAO_Resendmailing::deleteExistingActivityContactRecord($params);
+  }
+
   // OK, we're going for it.
   try {
 
@@ -133,7 +139,9 @@ function civicrm_api3_mailing_Resend($params) {
   CRM_Mailing_BAO_MailingJob::create(['id' => $job->id, 'end_date' => date('YmdHis'), 'status' => 'Complete']);
 
   // Release the child job lock
-  $lock->release();
+  if ($lock) {
+    $lock->release();
+  }
 
   // Return delivered mail info
   // $mailDelivered = CRM_Mailing_Event_BAO_Delivered::getRows($params['mailing_id'], $resendJob['id'], TRUE, NULL, NULL, NULL, 0);
