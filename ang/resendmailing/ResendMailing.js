@@ -17,7 +17,7 @@
           "sequential": 1,
           "return": ["id","name","subject","approval_date"],
           "approval_date": {">":threeMonthsAgo.toISOString().substr(0, 10)},
-          'options' : {sort : "approval_date DESC"}
+          'options' : {sort : "approval_date DESC", limit: 0}
         })
         .then(r => r.values || []);
       },
